@@ -111,6 +111,11 @@ On Unix, calling `exec` replaces it in-place; on Windows, the caller must spawn 
 new binary and exit. The restart wrapper handles this transparently, re-executing the
 process with the same arguments so the user never has to manually re-launch.
 
+**Windows note:** On Windows the wrapper spawns the new binary and exits the old one,
+so the original process ID is lost. If a parent process tracks your application by
+PID (e.g. a service manager or supervisor), it must be prepared to handle the PID
+disappearing and a new one appearing after an update.
+
 | Builder method | Description |
 |----------------|-------------|
 | `release_update(Box<dyn ReleaseUpdate>)` | The wrapped updater. **Required.** |
