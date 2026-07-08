@@ -83,6 +83,12 @@ have been replaced.
 
 ### `throttle::Update`
 
+Why: Update checks over the network waste bandwidth, battery, and server resources.
+Without throttling, a user launching the same CLI multiple times in a short window
+would hammer the update endpoint every single time. The throttle wrapper records the
+last check time and returns `UpToDate` immediately when the configured window hasn't
+elapsed, avoiding unnecessary network calls.
+
 | Builder method | Description |
 |----------------|-------------|
 | `release_update(Box<dyn ReleaseUpdate>)` | The wrapped updater. **Required.** |
@@ -96,6 +102,11 @@ updater runs and the throttle file is touched. The file lives at
 updater.
 
 ### `restart::Update`
+
+Why: After installing a new binary, the old process image is still loaded in memory.
+On Unix, calling `exec` replaces it in-place; on Windows, the caller must spawn the
+new binary and exit. The restart wrapper handles this transparently, re-executing the
+process with the same arguments so the user never has to manually re-launch.
 
 | Builder method | Description |
 |----------------|-------------|
