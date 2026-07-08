@@ -1273,6 +1273,7 @@ name = "self-update-extras"
 version = "0.1.0"
 dependencies = [
  "filetime",
+ "libc",
  "self_update",
  "serial_test",
 ]

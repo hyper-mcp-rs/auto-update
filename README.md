@@ -2,7 +2,7 @@
 
 Self-updating support for CLI binaries.
 
-`self-update-extras` provides two small, composable wrappers around any type that
+`self-update-extras` provides three small, composable wrappers around any type that
 implements [`self_update`](https://crates.io/crates/self_update)'s
 `ReleaseUpdate` trait. Each wrapper is itself a `ReleaseUpdate`, so they layer
 over a backend — or over each other — and can be used anywhere a
@@ -13,6 +13,10 @@ over a backend — or over each other — and can be used anywhere a
 - **`restart::Update`** — re-executes the process with the freshly installed
   binary after a successful update, using a guard environment variable to
   prevent restart loops.
+- **`silence::Update`** — redirects the wrapped update's standard output (fd 1)
+  to standard error or `/dev/null` while it runs, then restores it, so a
+  headless update never pollutes a stdio stream a parent process is monitoring
+  (for example, a stdio-based MCP server).
 
 The actual update source (GitHub, a custom server, etc.) is supplied by the
 caller as any `ReleaseUpdate` implementation, e.g. one of `self_update`'s
@@ -33,7 +37,7 @@ returns an `UpdateBuilder`, and `build()` produces a
 `Box<dyn ReleaseUpdate>`.
 
 ```rust
-use self_update_extras::{restart, throttle};
+use self_update_extras::{restart, silence, throttle};
 use self_update::backends::github;
 use self_update::update::ReleaseUpdate;
 use std::time::Duration;
@@ -48,13 +52,20 @@ fn check_for_update() -> Result<(), Box<dyn std::error::Error>> {
         .no_confirm(true)
         .build()?;
 
-    // 2. Throttle how often the check actually runs.
-    let throttled = throttle::Update::configure()
+    // 2. Silence the backend's output so it can't corrupt the stdio stream a
+    //    parent process may be monitoring. Kept innermost, inside `restart`.
+    let quiet = silence::Update::configure()
         .release_update(backend)
+        .sink(silence::Sink::Null)
+        .build()?;
+
+    // 3. Throttle how often the check actually runs.
+    let throttled = throttle::Update::configure()
+        .release_update(quiet)
         .throttle_window(Duration::from_secs(15 * 60))
         .build()?;
 
-    // 3. Restart into the new binary after a successful update.
+    // 4. Restart into the new binary after a successful update.
     //    `restart` must be the OUTERMOST wrapper — see the note below.
     let updater = restart::Update::configure()
         .release_update(throttled)
@@ -70,12 +81,12 @@ fn check_for_update() -> Result<(), Box<dyn std::error::Error>> {
 
 ### Composition order matters
 
-Both wrappers can be used individually — you can wrap a backend with just
-`throttle::Update` or just `restart::Update` without the other. But if you
-use **both**, `restart` must always be the outermost layer:
+Each wrapper can be used individually — you can wrap a backend with just
+`throttle::Update`, `restart::Update`, or `silence::Update`. But if you combine
+them, `restart` must always be the outermost layer:
 
 ```text
-backend → throttle → restart
+backend → silence → throttle → restart
 ```
 
 On a successful update, `restart` replaces the current process (`exec` on
@@ -83,6 +94,12 @@ Unix) or spawns the new binary and exits (Windows) — in both cases the call
 **never returns on success**. If `throttle` were the outer wrapper, its
 "record the check time" step would never run because the process would already
 have been replaced.
+
+`silence` must also stay **inside** `restart`: it restores fd 1 only when its
+own `update` call returns, so if it wrapped `restart` the `exec` would happen
+while stdout is still diverted and the re-executed process would inherit the
+redirected fd 1. Placing it closest to the backend also scopes the redirect to
+exactly the update's noisy work.
 
 ## Wrappers
 
@@ -133,6 +150,41 @@ variable. On the re-executed run the guard is detected and the check is
 skipped, so the update happens at most once per launch. Restart is supported
 on both Unix (via `exec`) and Windows (spawn-and-exit, propagating the child's
 exit code).
+
+### `silence::Update`
+
+Why: A fully headless updater often runs beneath a parent process that is
+monitoring the child's standard I/O for other purposes. The canonical case is a
+stdio-based MCP server, where fd 1 carries the JSON-RPC protocol stream — any
+stray byte a backend prints there (prompts, progress, status lines) corrupts
+the protocol. The silence wrapper redirects fd 1 for the duration of the update
+and restores it before returning, so the update stays invisible on stdout.
+
+| Builder method | Description |
+|----------------|-------------|
+| `release_update(Box<dyn ReleaseUpdate>)` | The wrapped updater. **Required.** |
+| `sink(silence::Sink)` | Where fd 1 is redirected while the update runs: `Sink::Stderr` (fold into fd 2, the default) or `Sink::Null` (discard via `/dev/null`). |
+| `build()` | Returns `Result<Box<dyn ReleaseUpdate>>`; errors if `release_update` is missing. |
+
+Before delegating to the wrapped updater, stdout is pointed at the chosen sink;
+the original is restored when the call returns, on both success and error.
+Because the redirect is applied below the language runtime, it also captures
+output from spawned child processes and native code — not just the current
+process's buffered stdout.
+
+- **Unix:** fd 1 is duplicated and swapped via `dup`/`dup2`.
+- **Windows:** the process's standard-output handle is swapped via
+  `GetStdHandle`/`SetStdHandle` (pointed at the `NUL` device or the
+  standard-error handle). Rust's `std` re-queries `GetStdHandle` on every
+  write, so its output honors the swap.
+- **Other platforms:** redirection is unsupported, so the wrapped update runs
+  unchanged.
+
+Metadata methods (`no_confirm`, `show_output`, `show_download_progress`, and
+the rest) delegate to the wrapped updater. Since a backend consults its own
+configuration when it runs, overriding those on the wrapper would not affect an
+arbitrarily deep composition, so `silence` relies solely on the fd redirect to
+keep the update quiet.
 
 ## License
 

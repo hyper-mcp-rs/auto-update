@@ -76,6 +76,11 @@ impl Update {
         UpdateBuilder::new()
     }
 
+    /// The minimum time that must elapse between update checks.
+    pub fn throttle_window(&self) -> Duration {
+        self.throttle_window
+    }
+
     /// Returns true if enough time has elapsed to perform an update check.
     fn should_check(&self) -> bool {
         let path = self.throttle_path();
@@ -169,13 +174,9 @@ impl ReleaseUpdate for Update {
     }
 
     fn update(&self) -> Result<Status> {
-        if !self.should_check() {
-            return Ok(Status::UpToDate(self.current_version()));
-        }
-
-        let result = self.inner.update();
-        self.touch_throttle();
-        result
+        let current_version = self.current_version();
+        self.update_extended()
+            .map(|s| s.into_status(current_version))
     }
 
     fn update_extended(&self) -> Result<UpdateStatus> {
@@ -337,6 +338,13 @@ mod tests {
         assert!(matches!(status, UpdateStatus::UpToDate));
         assert_eq!(calls.get(), 0);
         remove(&path);
+    }
+
+    #[test]
+    fn throttle_window_getter_reports_the_configured_window() {
+        let window = Duration::from_secs(42);
+        let updater = concrete(MockRelease::new("mock-throttle-getter"), window);
+        assert_eq!(updater.throttle_window(), window);
     }
 
     #[test]

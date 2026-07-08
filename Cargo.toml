@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
 authors = ["Joseph Wortmann <joseph.wortmann@gmail.com>"]
-description = "Composable self-update helpers for CLI binaries: throttle and restart wrappers around any self_update ReleaseUpdate backend"
+description = "Composable self-update helpers for CLI binaries: throttle, restart, and silence wrappers around any self_update ReleaseUpdate backend"
 license = "Apache-2.0"
 repository = "https://github.com/hyper-mcp-rs/self-update-extras"
 homepage = "https://github.com/hyper-mcp-rs/self-update-extras"
@@ -18,6 +18,11 @@ self_update = { version = "0.44", default-features = false, features = [
     "reqwest",
     "rustls",
 ] }
+
+# `silence` redirects file descriptor 1 via `dup`/`dup2`, which are not exposed
+# by `std`. Only needed on Unix; other platforms fall back to a no-op.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
 filetime = "0.2"

@@ -87,6 +87,11 @@ impl Update {
         UpdateBuilder::new()
     }
 
+    /// The guard environment variable used to prevent restart loops.
+    pub fn guard_env(&self) -> &str {
+        &self.guard_env
+    }
+
     /// Restart the process using the freshly installed executable.
     ///
     /// On Unix the current process image is replaced via `exec`, so this never
@@ -179,16 +184,9 @@ impl ReleaseUpdate for Update {
     }
 
     fn update(&self) -> Result<Status> {
-        // Already restarted after an update: nothing left to do.
-        if std::env::var_os(&self.guard_env).is_some() {
-            return Ok(Status::UpToDate(self.current_version()));
-        }
-
-        let status = self.inner.update()?;
-        if let Status::Updated(_) = status {
-            self.restart()?;
-        }
-        Ok(status)
+        let current_version = self.current_version();
+        self.update_extended()
+            .map(|s| s.into_status(current_version))
     }
 
     fn update_extended(&self) -> Result<UpdateStatus> {
@@ -281,6 +279,15 @@ mod tests {
 
         assert!(matches!(status, Status::UpToDate(_)));
         assert_eq!(calls.get(), 1);
+    }
+
+    #[test]
+    fn guard_env_getter_reports_the_configured_guard() {
+        let updater = Update {
+            inner: Box::new(MockRelease::new("mock-guard-getter")),
+            guard_env: "CUSTOM_GUARD".to_owned(),
+        };
+        assert_eq!(updater.guard_env(), "CUSTOM_GUARD");
     }
 
     #[test]

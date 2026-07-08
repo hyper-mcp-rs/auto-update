@@ -14,9 +14,9 @@ max_cc = 25
 # Reject oversized "god" files that accumulate unrelated responsibilities.
 no_god_files = true
 
-# `restart` and `throttle` are independent, composable wrappers. They are
-# only ever layered together at the call site (see the crate docs), so
-# neither may depend on the other.
+# `restart`, `throttle`, and `silence` are independent, composable wrappers.
+# They are only ever layered together at the call site (see the crate docs),
+# so none may depend on another.
 [[boundaries]]
 from = "src/restart.rs"
 to = "src/throttle.rs"
@@ -26,3 +26,23 @@ reason = "restart and throttle are independent wrappers; compose them at the cal
 from = "src/throttle.rs"
 to = "src/restart.rs"
 reason = "restart and throttle are independent wrappers; compose them at the call site, not by cross-importing"
+
+[[boundaries]]
+from = "src/silence.rs"
+to = "src/restart.rs"
+reason = "silence is an independent wrapper; compose it at the call site, not by cross-importing"
+
+[[boundaries]]
+from = "src/silence.rs"
+to = "src/throttle.rs"
+reason = "silence is an independent wrapper; compose it at the call site, not by cross-importing"
+
+[[boundaries]]
+from = "src/restart.rs"
+to = "src/silence.rs"
+reason = "silence is an independent wrapper; compose it at the call site, not by cross-importing"
+
+[[boundaries]]
+from = "src/throttle.rs"
+to = "src/silence.rs"
+reason = "silence is an independent wrapper; compose it at the call site, not by cross-importing"
