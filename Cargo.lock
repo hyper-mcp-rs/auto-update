@@ -37,7 +37,6 @@ name = "auto-update"
 version = "0.1.0"
 dependencies = [
  "filetime",
- "self-replace",
  "self_update",
  "serial_test",
 ]

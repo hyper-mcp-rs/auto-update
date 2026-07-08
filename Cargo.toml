@@ -16,7 +16,6 @@ self_update = { version = "0.44", default-features = false, features = [
     "reqwest",
     "rustls",
 ] }
-self-replace = "1.1"
 
 [dev-dependencies]
 filetime = "0.2"
