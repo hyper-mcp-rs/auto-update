@@ -17,6 +17,11 @@ self_update = { version = "0.44", default-features = false, features = [
 self-replace = "1.1"
 tracing = "0.1"
 
+[dependencies.cargo_metadata]
+version = "0.19"
+default-features = false
+features = []
+
 [dev-dependencies]
 filetime = "0.2"
 serial_test = "2.0"
