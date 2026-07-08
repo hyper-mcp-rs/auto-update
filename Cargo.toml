@@ -2,7 +2,7 @@
 name = "auto-update"
 version = "0.1.0"
 edition = "2024"
-description = "Self-updating support for CLI binaries: GitHub release checks, throttle, guard, binary replacement and re-exec"
+description = "Composable self-update helpers for CLI binaries: throttle and restart wrappers around any self_update ReleaseUpdate backend"
 license = "Apache-2.0"
 repository = "https://github.com/hyper-mcp-rs/auto-update"
 readme = "README.md"
