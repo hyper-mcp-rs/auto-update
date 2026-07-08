@@ -1,0 +1,29 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    // Pin GitHub Actions to commit SHAs (Renovate keeps the version comment).
+    "helpers:pinGitHubActionDigests",
+  ],
+  // Keep Cargo.lock current even when the manifests themselves don't change.
+  lockFileMaintenance: {
+    enabled: true,
+  },
+  // Sign off Renovate's commits to honor the project's DCO convention.
+  commitBody: "Signed-off-by: renovate[bot] <29139614+renovate[bot]@users.noreply.github.com>",
+  packageRules: [
+    {
+      // Batch routine Rust dependency bumps into a single PR.
+      matchManagers: ["cargo"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "cargo (non-major)",
+    },
+    {
+      // Batch GitHub Actions bumps into a single PR.
+      matchManagers: ["github-actions"],
+      groupName: "github-actions",
+    },
+  ],
+}
