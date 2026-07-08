@@ -2,9 +2,13 @@
 name = "auto-update"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
+authors = ["Joseph Wortmann <joseph.wortmann@gmail.com>"]
 description = "Composable self-update helpers for CLI binaries: throttle and restart wrappers around any self_update ReleaseUpdate backend"
 license = "Apache-2.0"
 repository = "https://github.com/hyper-mcp-rs/auto-update"
+homepage = "https://github.com/hyper-mcp-rs/auto-update"
+documentation = "https://docs.rs/auto-update"
 readme = "README.md"
 keywords = ["self-update", "updater", "cli", "release", "github"]
 categories = ["command-line-utilities", "development-tools"]
